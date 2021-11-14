@@ -5,14 +5,14 @@ x0 = zeros(n,1);
 x0(randperm(n,3)) = randn(3,1);
 y = X*x0;
 
-lam = norm(X'*y,'inf')/10;
+lam = norm(X'*y,'inf')/40;
 f = @(beta) lam*norm(beta,1)+1/2*norm(X*beta-y)^2;
 
 
-u = randn(n,1)*0.0001;
-v = randn(n,1)*0.0001;
+u = randn(n,1)*0.001;
+v = randn(n,1)*0.001;
 xinit = u.*v;
-niter = 10000;
+niter = 1000;
 gamma = 0.001;
 fvals_uv = [];
 for j=1:niter
@@ -44,4 +44,11 @@ clf
 semilogy(fvals_uv);
 hold on
 semilogy(fvals_x);
+%%
+figure(1)
+clf
+hold on
+stem(u.*v, 'bd')
+stem(x, 'ro')
+stem(x0, 'kx')
 
