@@ -1,0 +1,228 @@
+\documentclass{article}
+\newcommand{\dom}{\mathrm{dom}}
+\usepackage{lineno}
+\usepackage{grffile}
+
+\linenumbers
+
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+
+\usepackage{mystyle}
+\usepackage{mathtools,booktabs,tabu,graphicx,hyperref,epstopdf,url,rotating}
+%\usepackage{fullpage}
+\usepackage{algorithm}
+\usepackage{cite}
+\usepackage{algorithmic}
+\usepackage{fancyref}
+
+\title{Non-smooth hyper-parameter learning }
+
+\author{%
+  Clarice Poon
+}
+
+\newcommand{\OO}{\mathbb{O}}
+
+\newcommand{\commentout}[1]{}
+
+\newcommand{\asinh}{\mathrm{arcsinh}}
+
+\begin{document}
+
+\maketitle
+
+
+Consider
+\begin{align*}
+&\min_{y} h(y), \qwhereq h(y) = f(y, x(y)),\\
+ &\qquad \text{s.t.}  \quad x(y)\in \argmin_x g(y,x).
+\end{align*}
+In general, we have
+$$
+\partial_x g(y,x(y)) = 0,
+$$
+and by the implicit function theorem, provided that $\partial_{x}^2 g(y,x(y))$ is invertible, $y\mapsto x(y)$ is differentiable with
+$$
+x'(y) = - \partial_{xx}g(y,x(y))^{-1} \partial_{yx} g(y, x(y)).
+$$
+One can then evaluate the gradient of $h$ as
+\begin{equation}\label{eq:gradient_bilev}
+\nabla h(y) = \partial_y f(y, x(y)) - \partial_x f(y,x(y))^\top  \partial_{xx}g(y,x(y))^{-1} \partial_{yx} g(y, x(y)).
+\end{equation}
+
+
+\paragraph{Quasi-Newton?}
+One approach is to  find $p_k$ such taht
+$$
+ \partial_{yx} g(y, x(y))\approx  \partial_{yy}g(y,x(y))  p_k
+ $$
+ and evaluate $\nabla h(y) \approx \partial_y f(y, x(y)) - \partial_x f(y,x(y))^\top p_k$.
+
+
+Can we do a quasi-Newton approach?
+We know that
+$$
+\partial_x g(y,x(y)) = 0
+$$
+Let $x_k\eqdef x(y_k)$. Then
+\begin{align*}
+\partial_x g(y_k,x(y_{k-1})) &=
+\partial_x g(y_k,x_{k-1})- \partial_x g(y_k,x_k) \\
+& = \partial_{xx} g(y_k, x_k) (x_{k-1} - x_{k}) + o(\norm{x_{k-1}-x_k})
+\end{align*}
+Suppose we find $B_{k}$ such that it minimises
+$$
+\min_B\norm{ B  \partial_x g(y_{k},x(y_{k-1})) - (x_{k-1} - x_{k}) }
+$$
+and treat it as an approximation to $\partial_{xx} g(y_{k}, x(y_{k})) ^{-1}$. The idea is to compute
+$$\nabla h(y_k) \approx \partial_y f(y_k, x(y_k)) - \partial_x f(y_k,x(y_k))^\top  B_{k} \partial_{yx} g(y_k, x(y_k)).
+$$
+
+One possible update of $B_{k}$ is as $\tau_k\Id + u_{k} u_{k}^\top$. Define $s_k =x_{k-1} - x_k $ and $z_k  = \partial_y g(y_{k},x(y_{k-1}))$. We want to find diagonal + rank-1 matrix $B$ to minimise
+$$
+\min_B\norm{ B z_k  -s_k }
+$$
+\begin{itemize}
+\item[i)] Define  $\tau_k = \dotp{s_k}{z_k}/\norm{z_k}^2$ and project onto $[\tau_{\min}, \tau_{\max}]$.  Note that before projection, $\tau_k = \argmin_\tau \norm{\tau z_k - s_k}$.
+\item[ii)]  Let $B_0 \eqdef \gamma \tau_k \Id$ where $\gamma \in (0,1)$.
+\item[iii)]  If $\dotp{s_k - B_0 z_k}{z_k}\leq 10^{-8} \norm{z_k}\norm{s-B_0 z_k}$ the $U_k=0$. Else: 
+$$
+U_k = \frac{(s_k - B_0 z_k)(s_k - B_0 z_k)^\top}{\dotp{s_k - B_0 z_k}{z_k}}.
+$$
+\item[iv)]  Let $B_k = B_0 + U_k$.
+\end{itemize}
+Note that for step iii) the choice of $U_k$ is precisely finding $U_k = uu^\top$ such that
+$$
+ B_0 z_k + u\dotp{u}{z_k} - s_k  = 0.
+$$
+\todo{
+\begin{enumerate}
+\item If we repeatedly updated $B_k$ with rank-1 matrices, show that $B_k$ converges to $\partial_{xx} g(y_* ,x(y_*))^{-1}$.
+\item Suppose that $f = g$ and at iteration $k$, we have an approximate solution $\hat x_k \approx x(y_k)$. Possible ways of computing $\nabla h(y_k)$ include
+\begin{itemize}
+\item[i)] $p_1 = \partial_y f(y_k,\hat x_k))$
+\item[ii)] $p_2 = \partial_y f(y_k,\hat x_k)) - \partial_x f(y_k, \hat x_k)^\top B_k \partial_{yx} f(y_k, \hat x_k)$
+\item[iii)] $p_3 = \partial_y f(y_k, \hat x_k) + \partial_x f(y_k, \hat x_k)^\top  \partial_y \hat x_k$ where we obtain  $\partial_y \hat x_k$ via autodiff.
+\end{itemize} 
+The first and 3rd option have been analysed recently (Ablin et al). For the second approach, can we bound the difference between taking approximation $B_k$ and the true Hessian? 
+\end{enumerate}
+}
+
+\paragraph{A differentiable approach to nonsmooth bilevel programming}
+
+
+One example is where $g$ is nonsmooth is when $y$ correspond to a hyperparamter $\lambda$ and $x$ is the lasso regression coefficients:  $$
+f(\lambda,\beta)\eqdef \norm{A_{\text{test}}\beta - y}^2\qandq g(\lambda,\beta) \eqdef \frac12 \norm{A_{\text{train}}\beta - b}_2^2 +\lambda \norm{\beta}_1.
+$$
+
+The difficulty is in this case is that since $g$ is non-smooth, the formula \eqref{eq:gradient_bilev} cannot be used. One alternative is to consider instead
+$$
+f(\lambda,(u,v))\eqdef \norm{A_{\text{test}} uv - y}^2\qandq g(\lambda,(u,v)) \eqdef  \norm{A_{\text{train}}uv - b}_2^2 +\lambda \norm{u}^2/2+\lambda\norm{v}^2/2.
+$$
+The advantage with this approach is that $g$ is a smooth function and one can show that the Hessian of $g$ is invertible when $\beta\eqdef u(\lambda)\odot v(\lambda)$ is a nondegenerate solution, that is,
+$$
+\max_{i\not\in\Supp(\beta)} \abs{ A_{\text{train}}^\top(A_{\text{train}}\beta - b)}_i <1.
+$$
+
+Things to do
+\begin{itemize}
+\item Check properties of the Hessian of $g$.
+\item Acceleration using support pruning. 
+\end{itemize}
+
+
+\paragraph{The square root lasso}
+The square root lasso is
+$$
+\min_{\beta \in \RR^n} \norm{X\beta - y}_2 + \lambda \norm{\beta}_1.
+$$
+One interesting aspect of this is that when $y = X\beta_0 + w$, the minimiser $\beta$ satisfies
+$$
+\norm{\beta -\beta_0} \lesssim \norm{w}
+$$
+for some constant $\lambda$. This is remarkable since, for the Lasso, to achieve this kind of error bound, one would require that $\lambda\sim \norm{w}$ and some knowledge of the noise level is required.
+
+One remark is that the square root lasso is equivalent to
+$$
+\min_{\sigma>0} \min_{\beta}\frac{1}{2\sigma} \norm{X\beta-y}_2^2 + \frac{\sigma}{2} + \lambda \norm{\beta}_1,
+$$
+and we can therefore write this in the bilevel formulation with
+$$f(\sigma, \beta) = \frac{1}{2\sigma} \norm{X\beta-y}_2^2 + \frac{\sigma}{2} + \lambda \norm{\beta}_1$$
+and
+$$g(\sigma,\beta) = \frac{1}{2\sigma} \norm{X\beta-y}_2^2 + \lambda \norm{\beta}_1.$$
+
+One question I have is what happens when we consider
+\begin{align*}
+f(\sigma,\beta) &=  \frac{1}{2\sigma} \norm{A_{\mathrm{test}}\beta-y}_2^2 +  \frac{\epsilon\sigma}{2} +\iota_{\sigma>0}\\
+g(\sigma,\beta) &= \frac{1}{2\sigma} \norm{A_{\mathrm{train}} \beta-y}_2^2 +  \norm{\beta}_1 
+\end{align*}
+This is precisely the hyperparameter learning framework but with added regularisation on the parameter $\sigma$. Note that the outer problem can be written as an unconstrained smooth problem as follows:
+Let $z = \sqrt{\sigma}$ and $v =  A_{\mathrm{test}}\beta-y$, then
+\begin{align*}
+\min_{z\in\RR}f(z, \beta(z^2)), \qwhereq &f(z,\beta)\eqdef\min_{ zv =  A_{\mathrm{test}}\beta-y} \frac12  \norm{v}^2 +\frac{\epsilon}{2} z^2 ,\\
+&
+\beta(z^2) \eqdef \argmin_\beta g(z^2,\beta)
+\end{align*}
+Notice that the minimisation problem in $f$ is convex wrt $v$, so by taking the convex dual, 
+\begin{align*}
+f(z,\beta) = \max_{\alpha\in\RR^m} - \frac{\epsilon}{2}  z^2 \norm{\alpha}^2 +\frac{\epsilon}{2}  z^2 +\dotp{\alpha}{ -  A_{\mathrm{test}}\beta +y}
+\end{align*}
+The maximiser $\alpha$ is unique (as the problem is strongly concave) and $$\partial_\beta f = -A_{\mathrm{test}}^\top \alpha \qandq \partial_z f = z\norm{\alpha}^2.$$
+Numerically, we can certainly handle this, the question is whether this kind of regularisation is interesting in practice.
+
+\newcommand{\Ate}{A_{\mathrm{test}}}
+\newcommand{\yte}{y_{\mathrm{test}}}
+
+\newcommand{\Atr}{A_{\mathrm{train}}}
+\newcommand{\ytr}{y_{\mathrm{train}}}
+
+Let $F(\sigma) = f(\sigma, \beta(\sigma))$.
+Let's look at the optimality conditions\begin{align*}
+\partial_\sigma f = \frac{-1}{\sigma^2} \norm{\Ate\beta -\yte}^2 + \frac{\epsilon}{2} \\
+\partial_\beta f =  \frac{1}{\sigma} \Ate^\top (\Ate\beta -\yte) 
+\end{align*}
+Also, $\beta = \beta(\sigma)$ satisfies
+$$
+\Atr^\top \Atr \beta  = \Atr^\top  y -\sigma \sign(\beta)
+$$
+In general, $\sigma\mapsto \beta(\sigma)$ is differentiable almost everywhere with gradient
+$$
+ \beta'(\sigma)  = - (\Atr^\top \Atr)_{J,J}^{-1}  \sign(\beta).
+$$
+where $J=\Supp(\beta)$. So, when $F'(\sigma) = 0$, we have
+$$
+\frac{-1}{\sigma^2} \norm{\Ate\beta -\yte}^2 - \frac{1}{\sigma} \dotp{ (\Ate\beta -\yte) }{\Ate (\Atr^\top \Atr)_{J,J}^{-1}  \sign(\beta)}  + \frac{\epsilon}{2}   = 0
+$$
+which implies $\lambda = 1/\sigma$ satisfies, for $C\eqdef  \dotp{ (\Ate\beta -\yte) }{\Ate (\Atr^\top \Atr)_{J,J}^{-1}  \sign(\beta)}$,
+$$
+\lambda =  \frac{-C + \sqrt{C^2 + 2 \epsilon \norm{\Ate\beta -\yte}^2    }}{2\norm{\Ate\beta -\yte}^2 }
+$$
+
+NB: For the standard problem where $f(\sigma,\beta) =\frac12 \norm{\Ate\beta - y}^2$, then
+$$ 
+F'(\sigma) = -\dotp{(\Ate\beta - \yte)}{\Ate (\Atr^\top \Atr)_{J,J}^{-1} \sign(\beta) } .
+$$
+Suppose $\Ate = \Atr$, then this says that
+$$
+F'(\sigma) = \sigma\dotp{ (\Atr^\top \Atr)_{J,J}^{-1} \sign(\beta)}{\sign(\beta)} > 0
+$$
+which means that we optimise to $\sigma = 0$ as expected.
+%Note that
+%\begin{align*}
+%&\Ate^\top (\Ate \beta - y) - \Atr^\top (\Atr \beta -y)\\
+%&= (\Ate - \Atr)^\top (\Ate \beta - y) +  \Atr^\top (\Ate - \Atr) \beta 
+%\end{align*}
+%So, provided that $\norm{(\Ate - \Atr)}_{1\to 2} = \Oo(\delta)$,
+%\begin{align*}
+%&\norm{\Ate^\top (\Ate \beta - y) - \sigma \sign(\beta)}_\infty\\
+%&= \norm{(\Ate - \Atr)^\top}_{2\to\infty} \norm{ (\Ate \beta - y) }_2+  \norm{\Atr^\top}_{2\to\infty} \norm{(\Ate - \Atr)}_{1\to 2} \norm{ \beta }_1 = \Oo(\delta).
+%\end{align*}
+\end{document}

@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Mar 30 22:11:53 2022
+
+@author: cmhsp20
+"""
+
+from Solvers import Ridge,Logistic,Ridge_uv
+import numpy as np
+from scipy.sparse import linalg
+import matplotlib.pyplot as plt
+
+from libsvmdata import fetch_libsvm
+from tqdm import tqdm
+
+from scipy.sparse.linalg import LinearOperator
+
+
+def bilevelSolve(inner,outer,niter=100,tau=0.01,mode='hess'):
+    
+    y=1
+    fvals = []
+    gvals = []
+    
+    x = inner.minimise_x(np.exp(y))
+    x1 = inner.minimise_x(np.exp(y+tau))
+    dx_f = outer.grad_x(x,0)
+    grad =  -np.dot(dx_f,x1-x)
+    y -= tau*grad
+    
+    for i in tqdm(range(niter)):
+        xm = x
+        
+        alpha = np.exp(y)
+        x = inner.minimise_x(alpha,x)
+        dx_f = outer.grad_x(x,0)
+        dyx_g = alpha*x
+        
+        
+        if mode=='SR1':
+            gamma=0.5 #parameter for SR1, set inside (0,1)
+            s = xm - x
+            dx_g = inner.grad_x(xm, alpha)
+            t = np.dot(s,dx_g)/np.dot(dx_g,dx_g)
+            u = s-gamma*t*dx_g       
+            Bkg = gamma*t*dyx_g
+            if np.dot(u,dx_g) > (1e-8 * np.sqrt(np.dot(dx_g,dx_g)*np.dot(u,u))):
+                Bkg = Bkg + u* np.dot(u,dyx_g)/np.dot(u,dx_g)
+       
+        else: 
+            M = LinearOperator((inner.n,inner.n), matvec= lambda v: inner.hess_x(x,alpha,v))
+            grad = linalg.cgs(M, dyx_g, maxiter=100, tol = 1e-8)
+            Bkg =  grad[0]
+            
+            
+        grad = - np.dot(dx_f,Bkg)
+        y = y - tau*grad
+        
+        fvals.append(outer.funcval(x,0))
+        gvals.append(np.abs(grad))
+    
+    return y, fvals, gvals
+        
+        
+
+mtype = 'logistic'
+#mtype = 'ridge'
+
+
+datatype = 'libsvm'
+
+if datatype == 'libsvm':
+    names = ["australian_scale","a1a","a1a_test","covtype.binary","real-sim","news20.binary"]
+    
+    X,y = fetch_libsvm(names[0])   
+    
+    m,n = X.shape
+    
+    #do a 90-10 split into training and test data
+    p = np.random.permutation(m)
+    S = m*9//10
+    A = X[p[:S],:]
+    b= y[p[:S]]
+    A2 = X[p[S:],:]
+    b2 = y[p[S:]]
+else:
+    m=100
+    n=50
+    A = np.random.randn(m,n)
+    b = np.random.randn(m,)
+
+    A2 = A+ 0.7*np.random.randn(m,n)
+    b2 = b+ 0.7*np.random.randn(m,)
+if mtype == 'logistic':
+    b2 -= b2.min()
+    b2 /= b2.max()/2
+    b2 -= 1
+    
+    b -= b.min()
+    b /= b.max()/2
+    b -= 1
+print(mtype,datatype, A.shape)
+
+
+if mtype=='logistic':
+    inner = Logistic(A,b)
+    outer = Logistic(A2,b2)
+else:
+    inner = Ridge_uv(A,b)
+    outer = Ridge_uv(A2,b2)
+
+
+print('running bilivel with SR1\n')
+y2,f2,g2 = bilevelSolve(inner,outer,niter=300,tau=0.01,mode='SR1')
+
+print('running bilivel with hessian\n')
+y1,f1,g1 = bilevelSolve(inner,outer,niter=300,tau=0.01,mode='hess')
+
+print(y1,y2)
+
+# %%
+
+yvals = np.linspace(-10,6,50)
+mCurve = []
+for y in tqdm(yvals):
+    alpha = np.exp(y)
+    mCurve.append(outer.funcval( inner.minimise_x(alpha), 0 )  )
+
+plt.plot(yvals,mCurve,linewidth=2.0) 
+plt.plot([y1,y1], [np.min(mCurve), np.max(mCurve)],linewidth=4.0)
+plt.plot([y2,y2], [np.min(mCurve), np.max(mCurve)],linewidth=2.0)
+
+plt.show()
+    
+    
