@@ -59,7 +59,7 @@ One can then evaluate the gradient of $h$ as
 \end{equation}
 
 
-\paragraph{Quasi-Newton?}
+\section{Quasi-Newton?}
 One approach is to  find $p_k$ such taht
 $$
  \partial_{yx} g(y, x(y))\approx  \partial_{yy}g(y,x(y))  p_k
@@ -86,7 +86,7 @@ and treat it as an approximation to $\partial_{xx} g(y_{k}, x(y_{k})) ^{-1}$. Th
 $$\nabla h(y_k) \approx \partial_y f(y_k, x(y_k)) - \partial_x f(y_k,x(y_k))^\top  B_{k} \partial_{yx} g(y_k, x(y_k)).
 $$
 
-One possible update of $B_{k}$ is as $\tau_k\Id + u_{k} u_{k}^\top$. Define $s_k =x_{k-1} - x_k $ and $z_k  = \partial_y g(y_{k},x(y_{k-1}))$. We want to find diagonal + rank-1 matrix $B$ to minimise
+One possible update of $B_{k}$ is as $\tau_k\Id + u_{k} u_{k}^\top$. Define $s_k =x_{k-1} - x_k $ and $z_k  = \partial_x g(y_{k},x(y_{k-1}))$. We want to find diagonal + rank-1 matrix $B$ to minimise
 $$
 \min_B\norm{ B z_k  -s_k }
 $$
@@ -116,7 +116,54 @@ The first and 3rd option have been analysed recently (Ablin et al). For the seco
 \end{enumerate}
 }
 
-\paragraph{A differentiable approach to nonsmooth bilevel programming}
+
+
+
+
+\subsection{When the outer and inner problems are the same}
+
+Consider
+$$
+\min_y h(y), \qwhereq h(y) =  \min_x  f(x,y).
+$$
+
+
+
+
+By differentiating $\partial_x f(x(y),y) = 0$, we obtain  for $x = x(y)$, $$
+\partial_x^2 f(x,y) x'(y)  =-\partial_x \partial_y f(x,y)
+$$
+and$$
+\nabla h(x)  =   \partial_y f(x,y) - \partial_{xy} f(x,y)^\top \partial_x^2 f(x,y) ^{-1}  \partial_x f(x,y) 
+$$
+If $x(y) = \argmin_x f(x,y)$ is computed exactly, then $\nabla h(y) = \partial_y f(x,y)$. The question is what happens when $x(y)$ is only approximated by $\hat x$.  In this case, one can use the approximation
+$$
+\hat p = \partial_y f(\hat x,y) - \partial_{xy} f(\hat x,y)^\top \partial_x^2 f(\hat x,y) ^{-1}  \partial_x f(\hat x,y) 
+$$
+How effective is the quasi-Newton approximation to $\partial_x^2 f(\hat x,y) ^{-1} $?
+
+
+Examples:
+\begin{itemize}
+\item[(i)]  Lasso $ f(x,y)\eqdef \frac{1}{2} \norm{x}^2 + \frac12 \norm{y}^2  + \frac{1}{2\la} L(xy)
+$
+
+\begin{align*}
+\partial_y f= y +\frac{1}{\la} x\odot \nabla L(xy),\quad\partial_x f= x +\frac{1}{\la} y\odot \nabla L(xy)
+\end{align*}
+
+$$
+\partial_{xy} f = \frac{1}{\la}\pa{ \diag(\nabla L(xy)) + \diag(y) \nabla^2 L(xy) \diag(x) }
+$$
+and
+$$
+\partial_{xx} f = \Id + \frac{1}{\la} \diag(y) \nabla^2 L(xy) \diag(y)
+$$
+
+\end{itemize}
+
+
+\section{A differentiable approach to nonsmooth bilevel programming}
 
 
 One example is where $g$ is nonsmooth is when $y$ correspond to a hyperparamter $\lambda$ and $x$ is the lasso regression coefficients:  $$
@@ -136,10 +183,33 @@ Things to do
 \begin{itemize}
 \item Check properties of the Hessian of $g$.
 \item Acceleration using support pruning. 
+\item Can we handle regularisers such ash $\norm{L\beta}_1$ where $L$ is a (possibly singular) linear operator?
 \end{itemize}
 
 
-\paragraph{The square root lasso}
+
+For $$
+\min_\lambda f(\lambda,\beta)
+$$
+where $\beta \in \argmin_\beta  \lambda\norm{L\beta}_1 + \frac12 \norm{A\beta- y}^2$,
+consider instead
+$$
+\min_\lambda h(\lambda)\eqdef f(\lambda,\beta(v(\lambda),\lambda))
+$$
+where
+$$
+v(\lambda) \in \argmin_v \psi(v,\lambda)\eqdef \min_{\beta} \max_\alpha -\frac{1}{2\la}\norm{\al v}^2 + \frac{\la}{2}\norm{v}^2 + \frac12 \norm{A\beta - y}^2+\dotp{ L\beta }{\alpha}
+$$
+and
+$$
+\beta(v,\lambda) \in \argmin_{\beta}  \max_\alpha  \frac{1}{2\la}\norm{\al v}^2 + \frac{\la}{2}\norm{v}^2 + \frac12 \norm{A\beta - y}^2+\dotp{ L\beta }{\alpha}
+$$
+We certainly have that $\psi$ is differentiable and can compute $\nabla \psi$. To compute $\nabla h(\lambda)$, we need
+$$
+\partial_\la f + \partial_\beta f [\partial_v \beta \partial_\la v + \partial_\la \beta]
+$$
+
+\section{The square root lasso}
 The square root lasso is
 $$
 \min_{\beta \in \RR^n} \norm{X\beta - y}_2 + \lambda \norm{\beta}_1.
