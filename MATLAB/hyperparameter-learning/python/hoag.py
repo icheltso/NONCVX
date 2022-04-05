@@ -183,7 +183,7 @@ mtype = 'logistic'
 #mtype = 'ridge_l1'
 
 datatype = 'libsvm'
-datatype = 'random'
+#datatype = 'random'
 
 
 inner_iter=100
@@ -193,7 +193,7 @@ outer_iter=150
 if datatype == 'libsvm':
     names = ["australian_scale","a1a","a1a_test","covtype.binary","real-sim","news20.binary"]
     
-    X,y = fetch_libsvm(names[0])   
+    X,y = fetch_libsvm(names[-2])   
     
     m,n = X.shape
     
