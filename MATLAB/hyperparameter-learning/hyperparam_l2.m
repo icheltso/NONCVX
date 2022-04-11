@@ -3,7 +3,7 @@
 clearvars
 
 type = 'lsqr';
-type = 'logreg';
+% type = 'logreg';
 
 dataset = 'randomGaussian';
 dataset = 'libsvm';
@@ -81,8 +81,9 @@ switch type
     case 'lsqr'
         func_outer = @(x) norm(A_out *x - b_out)^2/2;
         Gradx_f =@(x) A_out'*(A_out*x - b_out);
-        
-        innerSolve = @(lambda,xinit) pcg(A'*A+lambda*speye(n), A'*b,1e-8,100,[],[],xinit);
+        Atb = A'*b;
+        AtA = @(x,lambda) lambda*x + A'*(A*x);
+        innerSolve = @(lambda,xinit) pcg(@(x)AtA(x,lambda), Atb,1e-8,100,[],[],xinit);
         
         func_g = @(w,lambda) lambda*norm(w)^2/2 + norm(A*w-b)^2/2;
         Gradx_g = @(w,lambda) A'* (A*w-b) +lambda*w;
